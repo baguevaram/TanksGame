@@ -2,15 +2,32 @@ import sys, pygame
 from math import pi, sin, cos
 
 
+def changeTurn():
+    global turn, angle, vel, vel1, vel2, angle1, angle2
+    turn = not turn
+
+    if turn:
+        vel2, vel = vel, vel1
+        angle2, angle = angle, angle1
+    else:
+        vel1, vel = vel, vel2
+        angle1, angle = angle, angle2
+
+
 def initTanks():
-    global tank1rect, tank2rect, angle,vel
+    global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2,turn
 
     tank2rect.x = 700
-    tank2rect.y = 500
+    tank2rect.y = 542
     tank1rect.x = 50
-    tank1rect.y = 500
-    angle = 45
-    vel = 20
+    tank1rect.y = 542
+    vel1 = 20
+    vel2 = 20
+    vel = vel1
+    angle1 = 45
+    angle2 = 135
+    angle = angle1
+    turn=True
 
 
 # Inicializamos pygame
@@ -39,12 +56,12 @@ explosionRect = explosion.get_rect()
 font = pygame.font.Font('freesansbold.ttf', 32)
 textWin = font.render('Tank 1 Wins', True, green, blue)
 textWinRect = textWin.get_rect()
-textWinRect.center = (width // 2, height // 2)
+textWinRect.center = (width // 2, height // 2 - 35)
 
 playAgain = pygame.image.load("images/playAgainButton.png")
-playAgain = pygame.transform.scale(playAgain, (110, 70))
+playAgain = pygame.transform.scale(playAgain, (140, 70))
 playAgainRect = playAgain.get_rect()
-playAgainRect.center = (width // 2, height // 2 + 70)
+playAgainRect.center = (width // 2, height // 2 + 35)
 
 tank1 = pygame.image.load("images/tank1.png")
 tank1 = pygame.transform.scale(tank1, (30, 30))
@@ -60,18 +77,24 @@ win = False
 
 run = True
 
-gravityAcceleration = 0.98  # positivo porque el el juego el positivo es hacia abajo
-vel = 20
+gravityAcceleration = 9.8  # positivo porque el el juego el positivo es hacia abajo
+vel1 = 20
+vel2 = 20
+vel = vel1
 
-angle = 45
+angle1 = 45
+angle2 = 135
+angle = angle1
 
 textAngle = font.render(str(angle), True, green, blue)
 textAngleRect = textAngle.get_rect()
 textAngleRect.center = (30, 30)
 
-textVel = font.render(str(vel*100//40), True, green, blue)
+textVel = font.render(str(vel * 100 // 40), True, green, blue)
 textVelRect = textVel.get_rect()
-textVelRect.center = (970, 30)
+textVelRect.center = (950, 30)
+
+turn = True  # True tank1, False tank2
 
 while run:
     pygame.time.delay(0)
@@ -110,27 +133,38 @@ while run:
     if fire:
         screen.blit(fireBall, fireBallRect)
         fireBallRect = fireBallRect.move(vx, vy)
-        vy += gravityAcceleration * 1
-        if fireBallRect.colliderect(tank2rect):
-            explosionRect.x = tank2rect.x
-            explosionRect.y = tank2rect.y
+        vy += gravityAcceleration * 0.1
+        adver = tank2rect if turn else tank1rect
+        if fireBallRect.colliderect(adver):
+            explosionRect.x = adver.x
+            explosionRect.y = adver.y
             screen.blit(explosion, explosionRect)
             win = True
             fire = False
-        if fireBallRect.bottom > height:
+            changeTurn()
+
+        if fireBallRect.bottom > 580 or fireBallRect.left < 0 or fireBallRect.right > width:
             fire = False
+            changeTurn()
         pygame.display.flip()
         continue
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_d]:
-        tank1rect = tank1rect.move(1, 0)
+        if turn:
+            tank1rect = tank1rect.move(1, 0)
+        else:
+            tank2rect = tank2rect.move(1, 0)
     if keys[pygame.K_a]:
-        tank1rect = tank1rect.move(-1, 0)
+        if turn:
+            tank1rect = tank1rect.move(-1, 0)
+        else:
+            tank2rect = tank2rect.move(-1, 0)
+
     if keys[pygame.K_q]:
-        angle += 1
+        angle = (angle + 1) % 360
     if keys[pygame.K_e]:
-        angle -= 1
+        angle = (angle - 1) % 360
     if keys[pygame.K_w] and vel < 40:
         vel += 1
     if keys[pygame.K_s] and vel > 0:
@@ -141,8 +175,9 @@ while run:
         vx = vel * cos(rads)
         vy = -vel * sin(rads)  # coordenadas en y en el juego van en sentido contrario
         fire = True
-        fireBallRect.x = tank1rect.x
-        fireBallRect.y = tank1rect.y
+
+        fireBallRect.x = tank1rect.x if turn else tank2rect.x
+        fireBallRect.y = tank1rect.y if turn else tank2rect.y
 
     pygame.display.flip()
 
