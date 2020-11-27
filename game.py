@@ -1,6 +1,15 @@
 import sys, pygame
 from math import pi, sin, cos
 
+def initTanks():
+    global tank1rect,tank2rect
+
+    tank2rect.x = 700
+    tank2rect.y = 500
+    tank1rect.x = 50
+    tank1rect.y = 500
+
+
 # Inicializamos pygame
 pygame.init()
 # Muestro una ventana de 800x600
@@ -17,16 +26,6 @@ speed = [1, 1]
 background = pygame.image.load("images/background.png")
 background = pygame.transform.scale(background, (width, height))
 
-tank1 = pygame.image.load("images/tank1.png")
-tank1 = pygame.transform.scale(tank1, (30, 30))
-tank1rect = tank1.get_rect()
-tank2 = pygame.image.load("images/tank2.png")
-tank2 = pygame.transform.scale(tank2, (30, 30))
-tank2rect = tank2.get_rect()
-
-tank2rect.move_ip(700, 500)
-tank1rect.move_ip(50, 500)
-
 fireBall = pygame.image.load("images/fireBall.png")
 fireBall = pygame.transform.scale(fireBall, (20, 20))
 fireBallRect = fireBall.get_rect()
@@ -36,15 +35,23 @@ explosion = pygame.transform.scale(explosion, (50, 50))
 explosionRect = explosion.get_rect()
 
 font = pygame.font.Font('freesansbold.ttf', 32)
-
 textWin = font.render('Tank 1 Wins', True, green, blue)
-
-# create a rectangular object for the
-# text surface object
 textWinRect = textWin.get_rect()
-
-# set the center of the rectangular object.
 textWinRect.center = (width // 2, height // 2)
+
+playAgain = pygame.image.load("images/playAgainButton.png")
+playAgain = pygame.transform.scale(playAgain, (110, 70))
+playAgainRect = playAgain.get_rect()
+playAgainRect.center = (width // 2, height // 2 + 70)
+
+tank1 = pygame.image.load("images/tank1.png")
+tank1 = pygame.transform.scale(tank1, (30, 30))
+tank1rect = tank1.get_rect()
+tank2 = pygame.image.load("images/tank2.png")
+tank2 = pygame.transform.scale(tank2, (30, 30))
+tank2rect = tank2.get_rect()
+
+initTanks()
 
 fire = False
 win = False
@@ -69,6 +76,31 @@ while run:
     if win:
         screen.blit(textWin, textWinRect)
         screen.blit(explosion, explosionRect)
+        screen.blit(playAgain, playAgainRect)
+
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+
+        if playAgainRect.left < mouse[0] < playAgainRect.right and playAgainRect.top < mouse[1] < playAgainRect.bottom:
+            if click[0] == 1 != None:
+                initTanks()
+                win = False
+
+        pygame.display.flip()
+        continue
+
+    if fire:
+        screen.blit(fireBall, fireBallRect)
+        fireBallRect = fireBallRect.move(vx, vy)
+        vy += gravityAcceleration * 1
+        if fireBallRect.colliderect(tank2rect):
+            explosionRect.x = tank2rect.x
+            explosionRect.y = tank2rect.y
+            screen.blit(explosion, explosionRect)
+            win = True
+            fire = False
+        if fireBallRect.bottom > height:
+            fire = False
         pygame.display.flip()
         continue
 
@@ -85,22 +117,6 @@ while run:
         fire = True
         fireBallRect.x = tank1rect.x
         fireBallRect.y = tank1rect.y
-
-    if fire:
-        screen.blit(fireBall, fireBallRect)
-        fireBallRect = fireBallRect.move(vx, vy)
-        vy += gravityAcceleration * 1
-        if fireBallRect.colliderect(tank2rect):
-            explosionRect.x = tank2rect.x
-            explosionRect.y = tank2rect.y
-            screen.blit(explosion, explosionRect)
-
-            print("tank1 WINS")
-            win = True
-            fire = False
-
-    if fireBallRect.bottom > height:
-        fire = False
 
     pygame.display.flip()
 
