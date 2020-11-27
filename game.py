@@ -1,13 +1,15 @@
 import sys, pygame
 from math import pi, sin, cos
 
+
 def initTanks():
-    global tank1rect,tank2rect
+    global tank1rect, tank2rect, angle
 
     tank2rect.x = 700
     tank2rect.y = 500
     tank1rect.x = 50
     tank1rect.y = 500
+    angle = 45
 
 
 # Inicializamos pygame
@@ -61,6 +63,12 @@ run = True
 gravityAcceleration = 0.8  # positivo porque el el juego el positivo es hacia abajo
 vel = 20
 
+angle = 45
+
+textAngle = font.render(str(angle), True, green, blue)
+textAngleRect = textAngle.get_rect()
+textAngleRect.center = (30, 30)
+
 while run:
     pygame.time.delay(0)
 
@@ -73,6 +81,9 @@ while run:
     screen.blit(tank1, tank1rect)
     screen.blit(tank2, tank2rect)
 
+    textAngle = font.render(str(angle), True, green, blue)
+    screen.blit(textAngle, textAngleRect)
+
     if win:
         screen.blit(textWin, textWinRect)
         screen.blit(explosion, explosionRect)
@@ -82,7 +93,7 @@ while run:
         click = pygame.mouse.get_pressed()
 
         if playAgainRect.left < mouse[0] < playAgainRect.right and playAgainRect.top < mouse[1] < playAgainRect.bottom:
-            if click[0] == 1 != None:
+            if click[0]:
                 initTanks()
                 win = False
 
@@ -109,11 +120,15 @@ while run:
         tank1rect = tank1rect.move(1, 0)
     if keys[pygame.K_a]:
         tank1rect = tank1rect.move(-1, 0)
+    if keys[pygame.K_w]:
+        angle += 1
+    if keys[pygame.K_s]:
+        angle -= 1
 
     if keys[pygame.K_j] and not fire:
-        angle = 45 * pi / 180
-        vx = vel * cos(angle)
-        vy = -vel * sin(angle)  # coordenadas en y en el juego van en sentido contrario
+        rads = angle * pi / 180
+        vx = vel * cos(rads)
+        vy = -vel * sin(rads)  # coordenadas en y en el juego van en sentido contrario
         fire = True
         fireBallRect.x = tank1rect.x
         fireBallRect.y = tank1rect.y
