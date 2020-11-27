@@ -3,13 +3,14 @@ from math import pi, sin, cos
 
 
 def initTanks():
-    global tank1rect, tank2rect, angle
+    global tank1rect, tank2rect, angle,vel
 
     tank2rect.x = 700
     tank2rect.y = 500
     tank1rect.x = 50
     tank1rect.y = 500
     angle = 45
+    vel = 20
 
 
 # Inicializamos pygame
@@ -23,7 +24,6 @@ blue = (0, 0, 128)
 
 # Inicializamos variables
 width, height = 1000, 600
-speed = [1, 1]
 
 background = pygame.image.load("images/background.png")
 background = pygame.transform.scale(background, (width, height))
@@ -60,7 +60,7 @@ win = False
 
 run = True
 
-gravityAcceleration = 0.8  # positivo porque el el juego el positivo es hacia abajo
+gravityAcceleration = 0.98  # positivo porque el el juego el positivo es hacia abajo
 vel = 20
 
 angle = 45
@@ -68,6 +68,10 @@ angle = 45
 textAngle = font.render(str(angle), True, green, blue)
 textAngleRect = textAngle.get_rect()
 textAngleRect.center = (30, 30)
+
+textVel = font.render(str(vel*100//40), True, green, blue)
+textVelRect = textVel.get_rect()
+textVelRect.center = (970, 30)
 
 while run:
     pygame.time.delay(0)
@@ -83,6 +87,9 @@ while run:
 
     textAngle = font.render(str(angle), True, green, blue)
     screen.blit(textAngle, textAngleRect)
+
+    textVel = font.render(str(vel * 100 // 40), True, green, blue)
+    screen.blit(textVel, textVelRect)
 
     if win:
         screen.blit(textWin, textWinRect)
@@ -120,10 +127,14 @@ while run:
         tank1rect = tank1rect.move(1, 0)
     if keys[pygame.K_a]:
         tank1rect = tank1rect.move(-1, 0)
-    if keys[pygame.K_w]:
+    if keys[pygame.K_q]:
         angle += 1
-    if keys[pygame.K_s]:
+    if keys[pygame.K_e]:
         angle -= 1
+    if keys[pygame.K_w] and vel < 40:
+        vel += 1
+    if keys[pygame.K_s] and vel > 0:
+        vel -= 1
 
     if keys[pygame.K_j] and not fire:
         rads = angle * pi / 180
