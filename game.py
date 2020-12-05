@@ -1,10 +1,11 @@
-import sys, pygame
+import pygame
 from math import pi, sin, cos
 
 
 def changeTurn():
-    global turn, angle, vel, vel1, vel2, angle1, angle2
+    global turn, angle, vel, vel1, vel2, angle1, angle2, movLimit
     turn = not turn
+    movLimit = 50
 
     if turn:
         vel2, vel = vel, vel1
@@ -15,9 +16,9 @@ def changeTurn():
 
 
 def initTanks():
-    global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2,turn
+    global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2, turn, movLimit
 
-    tank2rect.x = 700
+    tank2rect.x = 900
     tank2rect.y = 542
     tank1rect.x = 50
     tank1rect.y = 542
@@ -27,7 +28,8 @@ def initTanks():
     angle1 = 45
     angle2 = 135
     angle = angle1
-    turn=True
+    turn = True
+    movLimit = 50
 
 
 # Inicializamos pygame
@@ -49,14 +51,22 @@ fireBall = pygame.image.load("images/fireBall.png")
 fireBall = pygame.transform.scale(fireBall, (20, 20))
 fireBallRect = fireBall.get_rect()
 
+sight = pygame.image.load("images/sight.png")
+sight = pygame.transform.scale(sight, (20, 20))
+sightRect = sight.get_rect()
+
 explosion = pygame.image.load("images/explosion.png")
 explosion = pygame.transform.scale(explosion, (50, 50))
 explosionRect = explosion.get_rect()
 
 font = pygame.font.Font('freesansbold.ttf', 32)
-textWin = font.render('Tank 1 Wins', True, green, blue)
-textWinRect = textWin.get_rect()
-textWinRect.center = (width // 2, height // 2 - 35)
+textWin1 = font.render('Tank 1 Wins', True, green, blue)
+textWin1Rect = textWin1.get_rect()
+textWin1Rect.center = (width // 2, height // 2 - 35)
+
+textWin2 = font.render('Tank 2 Wins', True, green, blue)
+textWin2Rect = textWin2.get_rect()
+textWin2Rect.center = (width // 2, height // 2 - 35)
 
 playAgain = pygame.image.load("images/playAgainButton.png")
 playAgain = pygame.transform.scale(playAgain, (140, 70))
@@ -95,6 +105,7 @@ textVelRect = textVel.get_rect()
 textVelRect.center = (950, 30)
 
 turn = True  # True tank1, False tank2
+movLimit = 50
 
 while run:
     pygame.time.delay(0)
@@ -115,7 +126,11 @@ while run:
     screen.blit(textVel, textVelRect)
 
     if win:
-        screen.blit(textWin, textWinRect)
+        if turn:
+            screen.blit(textWin1, textWin1Rect)
+        else:
+            screen.blit(textWin2, textWin2Rect)
+
         screen.blit(explosion, explosionRect)
         screen.blit(playAgain, playAgainRect)
 
@@ -130,6 +145,17 @@ while run:
         pygame.display.flip()
         continue
 
+    rads = angle * pi / 180
+
+    if turn:
+        sightRect.x = tank1rect.x + vel * 3 * cos(rads)
+        sightRect.y = tank1rect.y - vel * 3 * sin(rads)
+        screen.blit(sight, sightRect)
+    else:
+        sightRect.x = tank2rect.x + vel * 3 * cos(rads)
+        sightRect.y = tank2rect.y - vel * 3 * sin(rads)
+        screen.blit(sight, sightRect)
+
     if fire:
         screen.blit(fireBall, fireBallRect)
         fireBallRect = fireBallRect.move(vx, vy)
@@ -141,7 +167,7 @@ while run:
             screen.blit(explosion, explosionRect)
             win = True
             fire = False
-            changeTurn()
+            # changeTurn()
 
         if fireBallRect.bottom > 580 or fireBallRect.left < 0 or fireBallRect.right > width:
             fire = False
@@ -150,17 +176,18 @@ while run:
         continue
 
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_d]:
+    if keys[pygame.K_d] and movLimit:
         if turn:
             tank1rect = tank1rect.move(1, 0)
         else:
             tank2rect = tank2rect.move(1, 0)
-    if keys[pygame.K_a]:
+        movLimit -= 1
+    if keys[pygame.K_a] and movLimit:
         if turn:
             tank1rect = tank1rect.move(-1, 0)
         else:
             tank2rect = tank2rect.move(-1, 0)
-
+        movLimit -= 1
     if keys[pygame.K_q]:
         angle = (angle + 1) % 360
     if keys[pygame.K_e]:
@@ -171,7 +198,6 @@ while run:
         vel -= 1
 
     if keys[pygame.K_j] and not fire:
-        rads = angle * pi / 180
         vx = vel * cos(rads)
         vy = -vel * sin(rads)  # coordenadas en y en el juego van en sentido contrario
         fire = True
