@@ -1,5 +1,25 @@
 import pygame
 from math import pi, sin, cos
+from random import randint
+
+
+def groundGen():
+    global field
+    field[0] = randint(100, height // 2)
+    steps = 3
+    upDown = []
+    for i in range(4):
+        up = randint(0, 1)
+        if up:
+            upDown.append((-2,5))
+        else:
+            upDown.append((-5,2))
+
+    for i in range(1, len(field), steps):
+        limits = upDown[i//(width//4)]
+        r = randint(limits[0], limits[1])
+        for j in range(steps):
+            field[min(i + j, width - 1)] = max(0,field[i - 1] + r)
 
 
 def changeTurn():
@@ -16,12 +36,14 @@ def changeTurn():
 
 
 def initTanks():
-    global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2, turn, movLimit
+    global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2, turn, movLimit, field
+
+    groundGen()
 
     tank2rect.x = 900
-    tank2rect.y = 542
+    tank2rect.bottom = height - field[900]
     tank1rect.x = 50
-    tank1rect.y = 542
+    tank1rect.bottom = height - field[50]
     vel1 = 20
     vel2 = 20
     vel = vel1
@@ -48,7 +70,7 @@ background = pygame.image.load("images/background.png")
 background = pygame.transform.scale(background, (width, height))
 
 fireBall = pygame.image.load("images/fireBall.png")
-fireBall = pygame.transform.scale(fireBall, (20, 20))
+fireBall = pygame.transform.scale(fireBall, (15, 15))
 fireBallRect = fireBall.get_rect()
 
 sight = pygame.image.load("images/sight.png")
@@ -80,6 +102,10 @@ tank2 = pygame.image.load("images/tank2.png")
 tank2 = pygame.transform.scale(tank2, (30, 30))
 tank2rect = tank2.get_rect()
 
+ground = pygame.image.load("images/ground.png")
+
+field = [100] * 1000
+
 initTanks()
 
 fire = False
@@ -107,6 +133,8 @@ textVelRect.center = (950, 30)
 turn = True  # True tank1, False tank2
 movLimit = 50
 
+gg = True
+
 while run:
     pygame.time.delay(0)
 
@@ -116,6 +144,8 @@ while run:
 
     screen.blit(background, [0, 0])
 
+    tank2rect.bottom = height - field[tank2rect.centerx]
+    tank1rect.bottom = height - field[tank1rect.centerx]
     screen.blit(tank1, tank1rect)
     screen.blit(tank2, tank2rect)
 
@@ -124,6 +154,15 @@ while run:
 
     textVel = font.render(str(vel * 100 // 40), True, green, blue)
     screen.blit(textVel, textVelRect)
+
+    # Terreno
+
+    for pix, h in enumerate(field):
+        groundPix = pygame.transform.scale(ground, (2, h))
+        groundRect = groundPix.get_rect()
+        groundRect.bottom = height
+        groundRect.x = pix
+        screen.blit(groundPix, groundRect)
 
     if win:
         if turn:
@@ -167,11 +206,27 @@ while run:
             screen.blit(explosion, explosionRect)
             win = True
             fire = False
-            # changeTurn()
 
-        if fireBallRect.bottom > 580 or fireBallRect.left < 0 or fireBallRect.right > width:
+        if fireBallRect.left < 0 or fireBallRect.right > width:
             fire = False
             changeTurn()
+
+        elif fireBallRect.bottom > height - field[fireBallRect.centerx]:
+            impact = fireBallRect.centerx
+
+
+            ref = field[impact]
+
+            explosionRect.centerx = fireBallRect.centerx
+            explosionRect.centery = fireBallRect.centery
+            screen.blit(explosion, explosionRect)
+            for pf in range(20):
+                res = int(pow(pow(20, 2) - pow(pf, 2), 0.5))
+                field[impact - pf] = max(0, min(field[impact - pf], ref - res))
+                field[impact + pf] = max(0, min(field[impact + pf], ref - res))
+            fire = False
+            changeTurn()
+
         pygame.display.flip()
         continue
 
