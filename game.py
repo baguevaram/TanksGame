@@ -6,20 +6,19 @@ from random import randint
 def groundGen():
     global field
     field[0] = randint(100, height // 2)
-    steps = 3
+
     upDown = []
     for i in range(4):
         up = randint(0, 1)
         if up:
-            upDown.append((-2,5))
+            upDown.append((-2, 5))
         else:
-            upDown.append((-5,2))
+            upDown.append((-5, 2))
 
-    for i in range(1, len(field), steps):
-        limits = upDown[i//(width//4)]
+    for i in range(1, len(field)):
+        limits = upDown[(i * 3) // (width // 4)]
         r = randint(limits[0], limits[1])
-        for j in range(steps):
-            field[min(i + j, width - 1)] = max(0,field[i - 1] + r)
+        field[i] = max(0, field[i - 1] + r)
 
 
 def changeTurn():
@@ -41,9 +40,9 @@ def initTanks():
     groundGen()
 
     tank2rect.x = 900
-    tank2rect.bottom = height - field[900]
+    tank2rect.bottom = height - field[900 // 3]
     tank1rect.x = 50
-    tank1rect.bottom = height - field[50]
+    tank1rect.bottom = height - field[50 // 3]
     vel1 = 20
     vel2 = 20
     vel = vel1
@@ -104,7 +103,7 @@ tank2rect = tank2.get_rect()
 
 ground = pygame.image.load("images/ground.png")
 
-field = [100] * 1000
+field = [100] * (1000 // 3)
 
 initTanks()
 
@@ -133,8 +132,6 @@ textVelRect.center = (950, 30)
 turn = True  # True tank1, False tank2
 movLimit = 50
 
-gg = True
-
 while run:
     pygame.time.delay(0)
 
@@ -144,8 +141,8 @@ while run:
 
     screen.blit(background, [0, 0])
 
-    tank2rect.bottom = height - field[tank2rect.centerx]
-    tank1rect.bottom = height - field[tank1rect.centerx]
+    tank2rect.bottom = height - field[tank2rect.centerx // 3]
+    tank1rect.bottom = height - field[tank1rect.centerx // 3]
     screen.blit(tank1, tank1rect)
     screen.blit(tank2, tank2rect)
 
@@ -158,10 +155,10 @@ while run:
     # Terreno
 
     for pix, h in enumerate(field):
-        groundPix = pygame.transform.scale(ground, (2, h))
+        groundPix = pygame.transform.scale(ground, (3, h))
         groundRect = groundPix.get_rect()
         groundRect.bottom = height
-        groundRect.x = pix
+        groundRect.x = pix * 3
         screen.blit(groundPix, groundRect)
 
     if win:
@@ -211,19 +208,22 @@ while run:
             fire = False
             changeTurn()
 
-        elif fireBallRect.bottom > height - field[fireBallRect.centerx]:
+        elif fireBallRect.bottom > height - field[fireBallRect.centerx // 3]:
             impact = fireBallRect.centerx
 
-
-            ref = field[impact]
+            ref = field[impact // 3]
 
             explosionRect.centerx = fireBallRect.centerx
             explosionRect.centery = fireBallRect.centery
             screen.blit(explosion, explosionRect)
             for pf in range(20):
                 res = int(pow(pow(20, 2) - pow(pf, 2), 0.5))
-                field[impact - pf] = max(0, min(field[impact - pf], ref - res))
-                field[impact + pf] = max(0, min(field[impact + pf], ref - res))
+                if (impact - pf) // 3 > 0:
+                    field[(impact - pf) // 3] = max(0, max(field[(impact - pf) // 3] - res,
+                                                           min(field[(impact - pf) // 3], ref - res)))
+                if (impact + pf) // 3 < len(field):
+                    field[(impact + pf) // 3] = max(0, max(field[(impact + pf) // 3] - res,
+                                                           min(field[(impact + pf) // 3], ref - res)))
             fire = False
             changeTurn()
 
@@ -232,15 +232,15 @@ while run:
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_d] and movLimit:
-        if turn:
+        if turn and tank1rect.right < width:
             tank1rect = tank1rect.move(1, 0)
-        else:
+        elif not turn and tank2rect.right < width:
             tank2rect = tank2rect.move(1, 0)
         movLimit -= 1
     if keys[pygame.K_a] and movLimit:
-        if turn:
+        if turn and tank1rect.left > 0:
             tank1rect = tank1rect.move(-1, 0)
-        else:
+        elif not turn and tank2rect.left > 0:
             tank2rect = tank2rect.move(-1, 0)
         movLimit -= 1
     if keys[pygame.K_q]:
