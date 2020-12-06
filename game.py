@@ -59,8 +59,8 @@ pygame.init()
 size = 1000, 600
 screen = pygame.display.set_mode(size)
 
-green = (0, 255, 0)
-blue = (0, 0, 128)
+black = (0, 0, 0)
+gray = (180, 180, 180)
 
 # Inicializamos variables
 width, height = 1000, 600
@@ -81,11 +81,11 @@ explosion = pygame.transform.scale(explosion, (50, 50))
 explosionRect = explosion.get_rect()
 
 font = pygame.font.Font('freesansbold.ttf', 32)
-textWin1 = font.render('Tank 1 Wins', True, green, blue)
+textWin1 = font.render('Tank 1 Wins', True, black, gray)
 textWin1Rect = textWin1.get_rect()
 textWin1Rect.center = (width // 2, height // 2 - 35)
 
-textWin2 = font.render('Tank 2 Wins', True, green, blue)
+textWin2 = font.render('Tank 2 Wins', True, black, gray)
 textWin2Rect = textWin2.get_rect()
 textWin2Rect.center = (width // 2, height // 2 - 35)
 
@@ -93,6 +93,11 @@ playAgain = pygame.image.load("images/playAgainButton.png")
 playAgain = pygame.transform.scale(playAgain, (140, 70))
 playAgainRect = playAgain.get_rect()
 playAgainRect.center = (width // 2, height // 2 + 35)
+
+reset = pygame.image.load("images/resetButton.png")
+reset = pygame.transform.scale(reset,(30,30))
+resetRect = reset.get_rect()
+resetRect.center = (width // 2, 30)
 
 tank1 = pygame.image.load("images/tank1.png")
 tank1 = pygame.transform.scale(tank1, (30, 30))
@@ -121,13 +126,23 @@ angle1 = 45
 angle2 = 135
 angle = angle1
 
-textAngle = font.render(str(angle), True, green, blue)
-textAngleRect = textAngle.get_rect()
-textAngleRect.center = (30, 30)
+textAngleLetters = font.render("Angle", True, black, gray)
+textAngleLettersRect = textAngleLetters.get_rect()
+textAngleLettersRect.left = 10
+textAngleLettersRect.centery = 30
 
-textVel = font.render(str(vel * 100 // 40), True, green, blue)
+textAngle = font.render(str(angle), True, black, gray)
+textAngleRect = textAngle.get_rect()
+textAngleRect.center = (30, 70)
+
+textPowerLetters = font.render("Power", True, black, gray)
+textPowerLettersRect = textPowerLetters.get_rect()
+textPowerLettersRect.right = 990
+textPowerLettersRect.centery = 30
+
+textVel = font.render(str(vel * 100 // 40), True, black, gray)
 textVelRect = textVel.get_rect()
-textVelRect.center = (950, 30)
+textVelRect.center = (950, 70)
 
 turn = True  # True tank1, False tank2
 movLimit = 50
@@ -140,17 +155,20 @@ while run:
         if event.type == pygame.QUIT: run = False
 
     screen.blit(background, [0, 0])
+    screen.blit(reset,resetRect)
+
+    mouse = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()
+
+    if resetRect.left < mouse[0] < resetRect.right and resetRect.top < mouse[1] < resetRect.bottom:
+        if click[0]:
+            win=False
+            initTanks()
 
     tank2rect.bottom = height - field[tank2rect.centerx // 3]
     tank1rect.bottom = height - field[tank1rect.centerx // 3]
     screen.blit(tank1, tank1rect)
     screen.blit(tank2, tank2rect)
-
-    textAngle = font.render(str(angle), True, green, blue)
-    screen.blit(textAngle, textAngleRect)
-
-    textVel = font.render(str(vel * 100 // 40), True, green, blue)
-    screen.blit(textVel, textVelRect)
 
     # Terreno
 
@@ -161,6 +179,14 @@ while run:
         groundRect.x = pix * 3
         screen.blit(groundPix, groundRect)
 
+    screen.blit(textAngleLetters, textAngleLettersRect)
+    textAngle = font.render(str(angle), True, black, gray)
+    screen.blit(textAngle, textAngleRect)
+
+    screen.blit(textPowerLetters, textPowerLettersRect)
+    textVel = font.render(str(vel * 100 // 40), True, black, gray)
+    screen.blit(textVel, textVelRect)
+
     if win:
         if turn:
             screen.blit(textWin1, textWin1Rect)
@@ -169,9 +195,6 @@ while run:
 
         screen.blit(explosion, explosionRect)
         screen.blit(playAgain, playAgainRect)
-
-        mouse = pygame.mouse.get_pos()
-        click = pygame.mouse.get_pressed()
 
         if playAgainRect.left < mouse[0] < playAgainRect.right and playAgainRect.top < mouse[1] < playAgainRect.bottom:
             if click[0]:
