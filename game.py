@@ -57,7 +57,7 @@ def initTanks():  # Funcion para crear un juego nuevo
     global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2, turn, movLimit, field, score1, score2, turnsLimit, fire
 
     # se genera un nuevo terreno
-    groundGen()
+    # groundGen()
 
     # se ponen todas las variables globales en sus valores iniciales
     tank2rect.x = 900
@@ -217,6 +217,100 @@ numberTank2 = font.render(str(score2), True, black, gray)
 numberTank2Rect = numberTank2.get_rect()
 numberTank2Rect.center = (950, 70)
 
+
+# fonction pour savoir si le tir touchera la cible
+def calculerCollition():
+    global tank1rect, tank2rect, angle, vel
+    rads = angle * pi / 180
+    d = pow(vel, 2) * sin(2 * rads)
+
+    tankDistance = tank2rect.left - tank1rect.centerx
+    diff = min(abs(d - (tankDistance)), abs(d - (tankDistance + 30)))
+
+    return diff
+
+
+# Fonction pour faire des actions
+def updateGame(action=-1):
+    # action:
+    # 0 ->   Droite      A
+    # 1 ->   Gauche      D
+    # 2 ->   +Angle      Q
+    # 3 ->   -Angle      E
+    # 4 ->   +Puissance  W
+    # 5 ->   -Puissance  S
+    # 6 ->   Tirer       J
+
+    global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2, turn, movLimit, field, score1, score2, turnsLimit, fire, vx, vy
+
+    reward = -10000
+
+    keys = pygame.key.get_pressed()  # Se guarda un arreglo donde las teclas presionadas estan en True y las demás en False
+
+    state = None
+    dis = calculerCollition()
+    # Si la tecla D o A están presionadas entonces el tanque que está de turno se mueve un píxel a la
+    # derecha o a la izquierda según corresponda y se disminuye en 1 el limite de movimiento
+    if (keys[pygame.K_d] or action == 0) and movLimit:
+        if turn and tank1rect.right < width:
+            tank1rect = tank1rect.move(1, 0)
+        elif not turn and tank2rect.right < width:
+            tank2rect = tank2rect.move(1, 0)
+        movLimit -= 1
+
+        state = [(tank1rect.centerx, tank1rect.centerx), (tank2rect.centerx, tank2rect.centerx), angle, vel, dis]
+        reward = -dis
+
+    if (keys[pygame.K_a] or action == 1) and movLimit:
+        if turn and tank1rect.left > 0:
+            tank1rect = tank1rect.move(-1, 0)
+        elif not turn and tank2rect.left > 0:
+            tank2rect = tank2rect.move(-1, 0)
+        movLimit -= 1
+        state = [(tank1rect.centerx, tank1rect.centerx), (tank2rect.centerx, tank2rect.centerx), angle, vel, dis]
+        reward = -dis
+
+    # Si la tecla presionadas es Q o E, se le suma o se le resta 1 al angulo según corresponda
+    # El ángulo siempre tiene modulo 360 para que esté entre 0 y 359
+    if keys[pygame.K_q] or action == 2:
+        angle = (angle + 1) % 360
+        state = [(tank1rect.centerx, tank1rect.centerx), (tank2rect.centerx, tank2rect.centerx), angle, vel, dis]
+        reward = -dis
+
+    if keys[pygame.K_e] or action == 3:
+        angle = (angle - 1) % 360
+        state = [(tank1rect.centerx, tank1rect.centerx), (tank2rect.centerx, tank2rect.centerx), angle, vel, dis]
+        reward = -dis
+
+    # Si la tecla presionadas es W o S, se le suma o se le resta 1 a la velocidad inicial según corresponda
+    # La velocidad inicial puede ser mínimo 0 y máximo 40
+    if (keys[pygame.K_w] or action == 4) and vel < 40:
+        vel += 1
+        state = [(tank1rect.centerx, tank1rect.centerx), (tank2rect.centerx, tank2rect.centerx), angle, vel, dis]
+        reward = -dis
+
+    if (keys[pygame.K_s] or action == 5) and vel > 0:
+        vel -= 1
+        state = [(tank1rect.centerx, tank1rect.centerx), (tank2rect.centerx, tank2rect.centerx), angle, vel, dis]
+        reward = -dis
+
+    # Si la tecla presionada es J, se calcula la velocidad inicial en X y en Y y la variable de control fire se pone en True
+    if keys[pygame.K_j] or action == 6:
+        vx = vel * cos(rads)
+        vy = -vel * sin(rads)  # coordenadas en Y en el juego van en sentido contrario (negativo arriba)
+        fire = True
+
+        turnsLimit -= 1  # Cuando se dispara se disminuye en 1 la cantidad de turnos restantes
+
+        # La posición inicial de la bola de fuego depende del tanque que este de turno
+        fireBallRect.x = tank1rect.x if turn else tank2rect.x
+        fireBallRect.y = tank1rect.y if turn else tank2rect.y
+        state = [(tank1rect.centerx, tank1rect.centerx), (tank2rect.centerx, tank2rect.centerx), angle, vel, dis]
+        reward = 1000 if dis < 30 else -dis
+
+    return state, reward, dis < 30
+
+
 # Se crea el ciclo que mantendrá activo el juego
 while run:
 
@@ -353,14 +447,14 @@ while run:
             screen.blit(explosion, explosionRect)
 
             # Se resta altura al terreno para simular una explosiónde radio de 20 píxeles en el terreno
-            for pf in range(20):
-                res = int(pow(pow(20, 2) - pow(pf, 2), 0.5))
-                if (impact - pf) // 3 > 0:
-                    field[(impact - pf) // 3] = max(0, max(field[(impact - pf) // 3] - res,
-                                                           min(field[(impact - pf) // 3], ref - res)))
-                if (impact + pf) // 3 < len(field):
-                    field[(impact + pf) // 3] = max(0, max(field[(impact + pf) // 3] - res,
-                                                           min(field[(impact + pf) // 3], ref - res)))
+            # for pf in range(20):
+            #     res = int(pow(pow(20, 2) - pow(pf, 2), 0.5))
+            #     if (impact - pf) // 3 > 0:
+            #         field[(impact - pf) // 3] = max(0, max(field[(impact - pf) // 3] - res,
+            #                                                min(field[(impact - pf) // 3], ref - res)))
+            #     if (impact + pf) // 3 < len(field):
+            #         field[(impact + pf) // 3] = max(0, max(field[(impact + pf) // 3] - res,
+            #                                                min(field[(impact + pf) // 3], ref - res)))
 
             # Luego de la exposión se cambia de turno
             fire = False
@@ -373,48 +467,13 @@ while run:
     if not turnsLimit:
         win = True
 
-    keys = pygame.key.get_pressed()  # Se guarda un arreglo donde las teclas presionadas estan en True y las demás en False
+    action = -1
+    state, reward, done = updateGame(action)
 
-    # Si la tecla D o A están presionadas entonces el tanque que está de turno se mueve un píxel a la
-    # derecha o a la izquierda según corresponda y se disminuye en 1 el limite de movimiento
-    if keys[pygame.K_d] and movLimit:
-        if turn and tank1rect.right < width:
-            tank1rect = tank1rect.move(1, 0)
-        elif not turn and tank2rect.right < width:
-            tank2rect = tank2rect.move(1, 0)
-        movLimit -= 1
-    if keys[pygame.K_a] and movLimit:
-        if turn and tank1rect.left > 0:
-            tank1rect = tank1rect.move(-1, 0)
-        elif not turn and tank2rect.left > 0:
-            tank2rect = tank2rect.move(-1, 0)
-        movLimit -= 1
-
-    # Si la tecla presionadas es Q o E, se le suma o se le resta 1 al angulo según corresponda
-    # El ángulo siempre tiene modulo 360 para que esté entre 0 y 359
-    if keys[pygame.K_q]:
-        angle = (angle + 1) % 360
-    if keys[pygame.K_e]:
-        angle = (angle - 1) % 360
-
-    # Si la tecla presionadas es W o S, se le suma o se le resta 1 a la velocidad inicial según corresponda
-    # La velocidad inicial puede ser mínimo 0 y máximo 40
-    if keys[pygame.K_w] and vel < 40:
-        vel += 1
-    if keys[pygame.K_s] and vel > 0:
-        vel -= 1
-
-    # Si la tecla presionada es J, se calcula la velocidad inicial en X y en Y y la variable de control fire se pone en True
-    if keys[pygame.K_j]:
-        vx = vel * cos(rads)
-        vy = -vel * sin(rads)  # coordenadas en Y en el juego van en sentido contrario (negativo arriba)
-        fire = True
-
-        turnsLimit -= 1  # Cuando se dispara se disminuye en 1 la cantidad de turnos restantes
-
-        # La posición inicial de la bola de fuego depende del tanque que este de turno
-        fireBallRect.x = tank1rect.x if turn else tank2rect.x
-        fireBallRect.y = tank1rect.y if turn else tank2rect.y
+    if state:
+        print(state)
+        print(reward)
+        print(done)
 
     pygame.display.flip()  # Esta función actualiza lo que hay en la ventana
 
