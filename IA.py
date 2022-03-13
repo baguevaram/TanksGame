@@ -90,7 +90,6 @@ class Tank:
         state, next_state, action, reward, done = map(torch.stack, zip(*batch))
         return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
 
-
     def td_estimate(self, state, action):
         current_Q = self.net(state, model="online")[
             np.arange(0, self.batch_size), action
@@ -155,6 +154,7 @@ class Tank:
 
         return (td_est.mean().item(), loss)
 
+
 class TankNet(nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
@@ -177,10 +177,12 @@ class TankNet(nn.Module):
             p.requires_grad = False
 
     def forward(self, input, model):
+        input = input.float()
         if model == "online":
             return self.online(input)
         elif model == "target":
             return self.target(input)
+
 
 class MetricLogger:
     def __init__(self, save_dir):

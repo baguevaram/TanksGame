@@ -228,14 +228,14 @@ numberTank2Rect.center = (950, 70)
 
 # fonction pour savoir si le tir touchera la cible
 def calculerCollition():
-    global tank1rect, tank2rect, angle, vel
+    global tank1rect, tank2rect, angle, vel, turn
     rads = angle * pi / 180
     d = pow(vel, 2) * sin(2 * rads)
-
-    tankDistance = tank2rect.left - tank1rect.centerx
+    d = d if turn else -d
+    tankDistance = (tank2rect.left - tank1rect.centerx) if turn else (tank2rect.centerx - tank1rect.right)
     diff = min(abs(d - (tankDistance)), abs(d - (tankDistance + 30)))
 
-    return int(diff)
+    return diff
 
 
 # Fonction pour faire des actions
@@ -267,8 +267,9 @@ def updateGame(action):
 
         dis = calculerCollition()
         state = np.array(
-            [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis])
-        reward = -dis/10
+            [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(
+            np.float32)
+        reward = -dis / 10
 
     if (keys[pygame.K_a] or action == 1) and movLimit:
         if turn and tank1rect.left > 0:
@@ -278,9 +279,8 @@ def updateGame(action):
         movLimit -= 1
 
         dis = calculerCollition()
-        state = np.array(
-            [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis])
-        reward = -dis/10
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
     # Si la tecla presionadas es Q o E, se le suma o se le resta 1 al angulo según corresponda
     # El ángulo siempre tiene modulo 360 para que esté entre 0 y 359
@@ -288,15 +288,15 @@ def updateGame(action):
         angle = (angle + 1) % 360
 
         dis = calculerCollition()
-        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis])
-        reward = -dis/10
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
     if keys[pygame.K_e] or action == 3:
         angle = (angle - 1) % 360
 
         dis = calculerCollition()
-        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis])
-        reward = -dis/10
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
     # Si la tecla presionadas es W o S, se le suma o se le resta 1 a la velocidad inicial según corresponda
     # La velocidad inicial puede ser mínimo 0 y máximo 40
@@ -304,15 +304,15 @@ def updateGame(action):
         vel += 1
 
         dis = calculerCollition()
-        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis])
-        reward = -dis/10
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
     if (keys[pygame.K_s] or action == 5) and vel > 0:
         vel -= 1
 
         dis = calculerCollition()
-        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis])
-        reward = -dis/10
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
     # Si la tecla presionada es J, se calcula la velocidad inicial en X y en Y y la variable de control fire se pone en True
     if keys[pygame.K_j] or action == 6:
@@ -327,10 +327,10 @@ def updateGame(action):
         fireBallRect.y = tank1rect.y if turn else tank2rect.y
 
         dis = calculerCollition()
-        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis])
-        reward = 1000 if dis < 30 else -dis
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = 10000 if dis < 30 else -dis
 
-    dis = calculerCollition()
+    # dis = calculerCollition()
     return state, reward, win
 
 
@@ -338,14 +338,18 @@ use_cuda = torch.cuda.is_available()
 print(f"Using CUDA: {use_cuda}")
 print()
 
-save_dir = Path("checkpoints") / datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-save_dir.mkdir(parents=True)
+save_dir1 = Path("checkpoints1") / datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+save_dir1.mkdir(parents=True)
+save_dir2 = Path("checkpoints2") / datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+save_dir2.mkdir(parents=True)
 
-tank1IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir)
+tank1IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir1)
+tank2IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir2)
 
-logger = IA.MetricLogger(save_dir)
+logger1 = IA.MetricLogger(save_dir1)
+logger2 = IA.MetricLogger(save_dir2)
 
-episodes = 2
+episodes = 100000
 for e in range(episodes):
     initTanks()
     win = False
@@ -510,32 +514,38 @@ for e in range(episodes):
         if not turnsLimit:
             win = True
 
-        action = -1
-
         if turn:
             # Run agent on the state
             action = tank1IA.act(state)
+        else:
+            action = tank2IA.act(state)
 
         next_state, reward, done = updateGame(action)
 
         if next_state is not None:
-            # Remember
-            tank1IA.cache(state, next_state, action, reward, done)
-            print(f"next_State: {next_state},\t reward :{reward},\t done :{done}")
-            # Learn
-            q, loss = tank1IA.learn()
-
-            # Logging
-            logger.log_step(reward, loss, q)
+            if turn:
+                # Remember
+                tank1IA.cache(state, next_state, action, reward, done)
+                # Learn
+                q, loss = tank1IA.learn()
+                logger1.log_step(reward, loss, q)
+            else:
+                tank2IA.cache(state, next_state, action, reward, done)
+                # print(f"TANK2 next_State: {next_state},\t reward :{reward},\t done :{done}")
+                # Learn
+                q, loss = tank2IA.learn()
+                logger2.log_step(reward, loss, q)
 
             # Update state
             state = next_state
 
         pygame.display.flip()  # Esta función actualiza lo que hay en la ventana
 
-    logger.log_episode()
+    logger1.log_episode()
+    logger2.log_episode()
 
-    if e % 20 == 0:
-        logger.record(episode=e, epsilon=tank1IA.exploration_rate, step=tank1IA.curr_step)
+    if e % 1 == 0:
+        logger1.record(episode=e, epsilon=tank1IA.exploration_rate, step=tank1IA.curr_step)
+        logger2.record(episode=e, epsilon=tank2IA.exploration_rate, step=tank2IA.curr_step)
 
 pygame.quit()  # Cual el ciclo se termina, se cierra la ventana
