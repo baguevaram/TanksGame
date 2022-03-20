@@ -24,7 +24,7 @@ class Tank:
             self.net = self.net.to(device="cuda")
 
         self.exploration_rate = 1
-        self.exploration_rate_decay = 0.99999975
+        self.exploration_rate_decay = 0.99999875
         self.exploration_rate_min = 0.1
         self.curr_step = 0
 

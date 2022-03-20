@@ -251,7 +251,7 @@ def updateGame(action):
 
     global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2, turn, movLimit, field, score1, score2, turnsLimit, fire, vx, vy
 
-    reward = -10000
+    reward = -1000000
 
     keys = pygame.key.get_pressed()  # Se guarda un arreglo donde las teclas presionadas estan en True y las demás en False
 
@@ -344,7 +344,12 @@ save_dir2 = Path("checkpoints2") / datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 save_dir2.mkdir(parents=True)
 
 tank1IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir1)
+tank1IA.net.load_state_dict(torch.load("net_IA1.chkpt")["model"])
+tank1IA.exploration_rate = 0
+
 tank2IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir2)
+tank2IA.net.load_state_dict(torch.load("net_IA2.chkpt")["model"])
+tank2IA.exploration_rate = 0
 
 logger1 = IA.MetricLogger(save_dir1)
 logger2 = IA.MetricLogger(save_dir2)
@@ -474,13 +479,13 @@ for e in range(episodes):
                 else:
                     score2 += 1
 
-                fire = False
                 changeTurn()
+                fire = False
 
             # Si la bola de fuego sale de la ventana por los lados, se cambia de turno
             if fireBallRect.left < 0 or fireBallRect.right > width:
-                fire = False
                 changeTurn()
+                fire = False
 
             # Condición para saber si la bola de fuego toca el piso
             elif fireBallRect.bottom > height - field[fireBallRect.centerx // 3]:
@@ -504,8 +509,8 @@ for e in range(episodes):
                 #                                                min(field[(impact + pf) // 3], ref - res)))
 
                 # Luego de la exposión se cambia de turno
-                fire = False
                 changeTurn()
+                fire = False
 
             pygame.display.flip()  # Esta función actualiza lo que hay en la ventana
             continue  # Pasa al siguiente ciclo sin mirar lo de abajo porque ya no es necesario
@@ -523,18 +528,18 @@ for e in range(episodes):
         next_state, reward, done = updateGame(action)
 
         if next_state is not None:
-            if turn:
-                # Remember
-                tank1IA.cache(state, next_state, action, reward, done)
-                # Learn
-                q, loss = tank1IA.learn()
-                logger1.log_step(reward, loss, q)
-            else:
-                tank2IA.cache(state, next_state, action, reward, done)
-                # print(f"TANK2 next_State: {next_state},\t reward :{reward},\t done :{done}")
-                # Learn
-                q, loss = tank2IA.learn()
-                logger2.log_step(reward, loss, q)
+            # if turn:
+            #     # Remember
+            #     tank1IA.cache(state, next_state, action, reward, done)
+            #     # Learn
+            #     q, loss = tank1IA.learn()
+            #     logger1.log_step(reward, loss, q)
+            # else:
+            #     tank2IA.cache(state, next_state, action, reward, done)
+            #     # print(f"TANK2 next_State: {next_state},\t reward :{reward},\t done :{done}")
+            #     # Learn
+            #     q, loss = tank2IA.learn()
+            #     logger2.log_step(reward, loss, q)
 
             # Update state
             state = next_state
@@ -544,8 +549,8 @@ for e in range(episodes):
     logger1.log_episode()
     logger2.log_episode()
 
-    if e % 1 == 0:
-        logger1.record(episode=e, epsilon=tank1IA.exploration_rate, step=tank1IA.curr_step)
-        logger2.record(episode=e, epsilon=tank2IA.exploration_rate, step=tank2IA.curr_step)
+    # if e % 1 == 0:
+    #     logger1.record(episode=e, epsilon=tank1IA.exploration_rate, step=tank1IA.curr_step)
+    #     logger2.record(episode=e, epsilon=tank2IA.exploration_rate, step=tank2IA.curr_step)
 
 pygame.quit()  # Cual el ciclo se termina, se cierra la ventana
