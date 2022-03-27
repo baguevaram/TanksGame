@@ -1,7 +1,7 @@
 import numpy as np
-import time
+#import time
 
-ANGLES_SIZE = 45
+ANGLES_SIZE = 90
 VELOCITIES_SIZE = 40 
 ACTION_SPACE_SIZE = 5
 
@@ -16,15 +16,17 @@ ANGLE_UP = 0
 ANGLE_DOWN = 1
 VELOCITY_UP = 2
 VELOCITY_DOWN = 3
-FIRE = 5
+FIRE = 4
 
 #parameters of the script
-LEARNING_RATE = 0.2
-GAMMA = 0.2 #actualisation factor
-GOAL_REWARD = 50
-MISS_PENALITY = -30 #penalise the agent if it misses
-EXPLORATION_RATE = 0.2
-ITERATIONS = 1000
+LEARNING_RATE = 0.1
+GAMMA = 0.8 #actualisation factor
+GOAL_REWARD = 10000000
+MISS_PENALITY =  0#penalise the agent if it misses
+EXPLORATION_RATE = 0.1
+FDPPENALTY = -6000
+DELTADECAY = 0.1
+ITERATIONS = 1000000
 
 
 class Agent: #agent that will play the game 
@@ -43,7 +45,7 @@ class Agent: #agent that will play the game
         self.iterations = ITERATIONS
 
         #initial conditions
-        self.initialState = [0,20] #according to the game's initial angle and velocity
+        self.initialState = [45,20] #according to the game's initial angle and velocity
         self.maxTurns = 20 #according to the game, the number of turns per player
 
         #agent's internal states 
@@ -54,6 +56,24 @@ class Agent: #agent that will play the game
         #mappings from action to index
         self.actionSpace = [self.angleUp, self.angleDown, self.velUp, self.velDown, self.fire]
         
+    def action_toString(action):
+
+        match action:
+            case 0:
+                return "Angle up"
+            case 1:
+                return "Angle down"
+            case 2:
+                return "Velocitu up"
+            case 3:
+                return "Velocity Down"
+            case 4:
+                return "Fire!"
+            
+            case _:
+                return "wtf"
+
+
 
     #actions of the agent
     def angleUp(self):
@@ -82,7 +102,7 @@ class Agent: #agent that will play the game
         self.turnsLeft = self.maxTurns
 
 
-    def calculerCollision(v,x): #to kn  ow where the fireball will hit
+    def calculerCollision(x,v): #to kn  ow where the fireball will hit
 
         rads = x * np.pi / 180
         d = v**2 * np.sin(2*rads) #according to Brayan's formula
@@ -110,22 +130,28 @@ class Agent: #agent that will play the game
         #Exploit
         return np.argmax(self.Q[self.state[0],self.state[1]]) #return the best action inside the Q_table for that state
 
-    def stepReward(self, x,v): #reward for a given action
-        delta = Agent.calculerCollision(v,x)
+    def stepReward(self, x,v,lastState): #reward for a given action
+        # if x == lastState[0] and v == lastState[1]: 
+        #     return FDPPENALTY 
+        delta = Agent.calculerCollision(x,v)
         if self.fired:
-            return GOAL_REWARD if (delta < HITBOXWIDTH/2) else MISS_PENALITY
+            if delta< HITBOXWIDTH:
+                #print('HIT!')
+                return GOAL_REWARD
+            else:
+                return MISS_PENALITY
         else:
-            return -delta
+            return DELTADECAY*-delta
 
     #openAi-like function for making tehe agent act and then observing the next state after the action,
     #the reward from the action, and wheater the game finished or not
-    def step(self, action):
+    def step(self, action, lastState):
         #Sample an action according to epsilon-greedy method
         self.actionSpace[action]() #execute the according action
         newState = self.state
         finished = self.turnsLeft <= 0
-        reward = self.stepReward(newState[0],newState[1])
-        self.fired = False #in case the tank fired in the last step, more 
+        reward = self.stepReward(newState[0],newState[1], lastState)
+        self.fired = False #in case the tank fired in the last step
 
         return newState, reward, finished
 
@@ -136,10 +162,19 @@ class Agent: #agent that will play the game
         self.Q = np.load(path)
 
     def learn(self): #plays the game in a simulated environment and (hopefully) learns the Q table
-                
-        for _ in range(self.iterations):
+        
+        logevery = 1000 #number of iterations before printing the number of operations done
+
+
+        for nb_iteration in range(self.iterations):
+            
+            if nb_iteration % logevery == 0:
+                print(f"Learning... {nb_iteration} out of {self.iterations} iterations")
+                logevery *= 2
 
             state = self.initialState
+
+            lastState = [state[0]-1, state[1]]
 
             finished = False 
             
@@ -148,7 +183,7 @@ class Agent: #agent that will play the game
 
             while(not finished): # play the game to the end 
 
-                next_state , reward, finished = self.step(action)
+                next_state , reward, finished = self.step(action, lastState)
                                 
                 if finished:
                     self.Q[state[0], state[1], action] = (1 - self.LearningRate) * self.Q[state[0], state[1], action] + self.LearningRate* reward
@@ -160,6 +195,7 @@ class Agent: #agent that will play the game
                 self.Q[state[0], state[1], action] = (1 - self.LearningRate) * self.Q[state[0], state[1], action] + self.LearningRate* (reward + self.gamma * self.Q[next_state[0],next_state[1],next_action] )
 
                 #now the current state is state and the current action is action
+                lastState = state
                 state = next_state
                 action = next_action
 
@@ -177,7 +213,10 @@ class Agent: #agent that will play the game
 
         self.fired = False
 
-        return self.state #I think I will use this to play the game
+        print("Action values:",self.Q[self.state[0], self.state[1]])
+        print(f"Action: {Agent.action_toString(action)}, state: {self.state}")
+
+        return action #I think I will use this to play the game
 
 if __name__ == "__main__":
 
@@ -186,6 +225,4 @@ if __name__ == "__main__":
 
     print(bunda.Q)
 
-# for i in range(0,VITESSMAX):
-#     for j in range (0,ANGLEMAX):
-#         Q_table[i][j]=stepReward(i,j)
+    bunda.save(".\Q_table")
