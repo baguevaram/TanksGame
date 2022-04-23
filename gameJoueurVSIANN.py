@@ -232,9 +232,10 @@ def calculerCollition():
     rads = angle * pi / 180
     d = pow(vel, 2) * sin(2 * rads)
     d = d if turn else -d
-    tankDistance = (tank2rect.left - tank1rect.centerx) if turn else (tank2rect.centerx - tank1rect.right)
-    diff = min(abs(d - (tankDistance)), abs(d - (tankDistance + 30)))
-
+    tankDistance = tank2rect.x - tank1rect.x
+    diff = abs(d - tankDistance)
+    if (tankDistance+10) > d > (tankDistance-5):
+        diff=0
     return diff
 
 
@@ -328,7 +329,7 @@ def updateGame(action):
 
         dis = calculerCollition()
         state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
-        reward = 10000 if dis < 30 else -dis
+        reward = 10000 if not dis else -dis
 
     # dis = calculerCollition()
     return state, reward, win
@@ -518,16 +519,17 @@ while True:
     if not turnsLimit:
         win = True
 
+    action = -1
     if turn:
         # Run agent on the state
         action = tank1IA.act(state)
-    else:
-        action = tank2IA.act(state)
+    # else:
+    #     action = tank2IA.act(state)
 
     next_state, reward, done = updateGame(action)
-    # next_state, reward, done = updateGame(-1)
 
     if next_state is not None:
+        # print(reward)
         # if turn:
         #     # Remember
         #     tank1IA.cache(state, next_state, action, reward, done)

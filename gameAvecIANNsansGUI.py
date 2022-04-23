@@ -68,9 +68,9 @@ def initTanks():  # Funcion para crear un juego nuevo
     # groundGen()
 
     # se ponen todas las variables globales en sus valores iniciales
-    tank2rect.x = 900
+    tank2rect.x = randint(550,950)
     tank2rect.bottom = height - field[900 // 3]
-    tank1rect.x = 50
+    tank1rect.x = randint(50,450)
     tank1rect.bottom = height - field[50 // 3]
     vel1 = 20
     vel2 = 20
@@ -233,9 +233,10 @@ def calculerCollition():
     rads = angle * pi / 180
     d = pow(vel, 2) * sin(2 * rads)
     d = d if turn else -d
-    tankDistance = (tank2rect.left - tank1rect.x) if turn else (tank2rect.x - tank1rect.right)
-    diff = min(abs(d - (tankDistance)), abs(d - (tankDistance + 30)))
-
+    tankDistance = tank2rect.x - tank1rect.x
+    diff = abs(d - tankDistance)
+    if (tankDistance+10) > d > (tankDistance-5):
+        diff=0
     return diff
 
 
@@ -341,7 +342,7 @@ def updateGame(action):
         state = np.array(
             [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(
             np.float32)
-        reward = 10000 if dis < 30 else -dis
+        reward = 10000 if not dis else -dis
         changeTurn()
 
     # dis = calculerCollition()
@@ -358,11 +359,7 @@ save_dir2 = Path("checkpoints2") / datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 save_dir2.mkdir(parents=True)
 
 tank1IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir1)
-tank1IA.net.load_state_dict(torch.load("net_IA1.chkpt")["model"])
-tank1IA.exploration_rate = 0
 tank2IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir2)
-tank2IA.net.load_state_dict(torch.load("net_IA2.chkpt")["model"])
-tank2IA.exploration_rate = 0
 
 logger1 = IA.MetricLogger(save_dir1)
 logger2 = IA.MetricLogger(save_dir2)
@@ -373,7 +370,6 @@ for e in range(episodes):
     win = False
     dis = calculerCollition()
     state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis])
-
     # Se crea el ciclo que mantendrá activo el juego
     while not win:
 
@@ -535,8 +531,9 @@ for e in range(episodes):
             # Run agent on the state
             action = tank1IA.act(state)
         else:
-            action = tank2IA.act(state)
-
+            # action = tank2IA.act(state)
+            action = randint(-10,10)
+            action = 0 if action<0 else ( 1 if action > 0 else 6 )
         next_state, reward, done = updateGame(action)
 
         if next_state is not None:
@@ -546,12 +543,12 @@ for e in range(episodes):
                 # Learn
                 q, loss = tank1IA.learn()
                 logger1.log_step(reward, loss, q)
-            else:
-                tank2IA.cache(state, next_state, action, reward, done)
-                # print(f"TANK2 next_State: {next_state},\t reward :{reward},\t done :{done}")
-                # Learn
-                q, loss = tank2IA.learn()
-                logger2.log_step(reward, loss, q)
+            # else:
+            #     tank2IA.cache(state, next_state, action, reward, done)
+            #     # print(f"TANK2 next_State: {next_state},\t reward :{reward},\t done :{done}")
+            #     # Learn
+            #     q, loss = tank2IA.learn()
+            #     logger2.log_step(reward, loss, q)
 
             # Update state
             state = next_state
@@ -561,8 +558,8 @@ for e in range(episodes):
     logger1.log_episode()
     logger2.log_episode()
 
-    if e % 10 == 0:
+    if e % 1000 == 0:
         logger1.record(episode=e, epsilon=tank1IA.exploration_rate, step=tank1IA.curr_step)
-        logger2.record(episode=e, epsilon=tank2IA.exploration_rate, step=tank2IA.curr_step)
+        # logger2.record(episode=e, epsilon=tank2IA.exploration_rate, step=tank2IA.curr_step)
 
 pygame.quit()  # Cual el ciclo se termina, se cierra la ventana
