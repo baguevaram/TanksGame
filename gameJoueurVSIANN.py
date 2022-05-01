@@ -351,7 +351,7 @@ tank1IA.exploration_rate = 0
 
 tank2IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir2)
 # tank2IA.net.load_state_dict(torch.load("net_IA2.chkpt")["model"])
-tank2IA.net.load_state_dict(torch.load("2tank2.chkpt")["model"])
+tank2IA.net.load_state_dict(torch.load("2tank1.chkpt")["model"])
 tank2IA.exploration_rate = 0
 
 logger1 = IA.MetricLogger(save_dir1)
