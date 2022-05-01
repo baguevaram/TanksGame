@@ -1,12 +1,12 @@
 import numpy as np
-#import time
+import matplotlib.pyplot as plt
 
 ANGLES_SIZE = 90
 VELOCITIES_SIZE = 40 
 ACTION_SPACE_SIZE = 5
 
-INITPOS = 50
-ENEMYPOS = 900
+INITPOS = 65
+ENEMYPOS = 915
 DISTANCEOPPONENT= abs(ENEMYPOS - INITPOS) #d is the distance between the person who is playing and the opponent A RECTIFIER
 #TODO:check Brayan's game to see if the hitbox width is right
 HITBOXWIDTH = 30 #the size of the enemy's hit box (region where it is considered a collision if the ball hits)
@@ -19,14 +19,14 @@ VELOCITY_DOWN = 3
 FIRE = 4
 
 #parameters of the script
-LEARNING_RATE = 0.1
-GAMMA = 0.8 #actualisation factor
-GOAL_REWARD = 10000000
-MISS_PENALITY =  0#penalise the agent if it misses
-EXPLORATION_RATE = 0.1
-FDPPENALTY = -6000
-DELTADECAY = 0.1
-ITERATIONS = 1000000
+LEARNING_RATE = 0.2
+GAMMA = 0.9 #actualisation factor
+GOAL_REWARD = 100000000
+MISS_PENALITY =  -100#penalise the agent if it misses
+EXPLORATION_RATE = 0.3
+FDPPENALTY = -2000
+DELTADECAY = 0.2
+ITERATIONS = 80000
 
 
 class Agent: #agent that will play the game 
@@ -46,7 +46,7 @@ class Agent: #agent that will play the game
 
         #initial conditions
         self.initialState = [45,20] #according to the game's initial angle and velocity
-        self.maxTurns = 20 #according to the game, the number of turns per player
+        self.maxTurns = 200 #20 #according to the game, the number of turns per player
 
         #agent's internal states 
         self.state = self.initialState
@@ -64,7 +64,7 @@ class Agent: #agent that will play the game
             case 1:
                 return "Angle down"
             case 2:
-                return "Velocitu up"
+                return "Velocity up"
             case 3:
                 return "Velocity Down"
             case 4:
@@ -130,27 +130,28 @@ class Agent: #agent that will play the game
         #Exploit
         return np.argmax(self.Q[self.state[0],self.state[1]]) #return the best action inside the Q_table for that state
 
-    def stepReward(self, x,v,lastState): #reward for a given action
-        # if x == lastState[0] and v == lastState[1]: 
-        #     return FDPPENALTY 
+    def stepReward(self, x,v,lastState, lastlastState): #reward for a given action
+        if x == lastlastState[0] and v == lastlastState[1]: 
+             return FDPPENALTY 
         delta = Agent.calculerCollision(x,v)
+        lastdelta = Agent.calculerCollision(lastState[0], lastState[1])
         if self.fired:
             if delta< HITBOXWIDTH:
-                #print('HIT!')
+                #print(f'HIT! {self.state[0],self.state[1]}')
                 return GOAL_REWARD
             else:
-                return MISS_PENALITY
+                return -DELTADECAY*delta #MISS_PENALITY
         else:
-            return DELTADECAY*-delta
+            return -DELTADECAY *delta #*(lastdelta - delta) #to reward the step if we actually get closer to the target
 
-    #openAi-like function for making tehe agent act and then observing the next state after the action,
+    #openAi-like function for making the agent act and then observing the next state after the action,
     #the reward from the action, and wheater the game finished or not
-    def step(self, action, lastState):
+    def step(self, action, lastState, lastlastState):
         #Sample an action according to epsilon-greedy method
         self.actionSpace[action]() #execute the according action
         newState = self.state
         finished = self.turnsLeft <= 0
-        reward = self.stepReward(newState[0],newState[1], lastState)
+        reward = self.stepReward(newState[0],newState[1], lastState, lastlastState)
         self.fired = False #in case the tank fired in the last step
 
         return newState, reward, finished
@@ -163,18 +164,27 @@ class Agent: #agent that will play the game
 
     def learn(self): #plays the game in a simulated environment and (hopefully) learns the Q table
         
+        renforcements = []
+        iterations = []
+
         logevery = 1000 #number of iterations before printing the number of operations done
 
 
+        renforcementsCumulés = 0
+
         for nb_iteration in range(self.iterations):
-            
+
             if nb_iteration % logevery == 0:
                 print(f"Learning... {nb_iteration} out of {self.iterations} iterations")
-                logevery *= 2
+                print("Renforcements cumulés: ",renforcementsCumulés/(nb_iteration+1))
+                renforcements.append(renforcementsCumulés/(nb_iteration+1))
+                iterations.append(nb_iteration + 1)
+
+                self.save("checkpoint")
 
             state = self.initialState
 
-            lastState = [state[0]-1, state[1]]
+            lastState = [state[0], state[1]-1]
 
             finished = False 
             
@@ -183,28 +193,38 @@ class Agent: #agent that will play the game
 
             while(not finished): # play the game to the end 
 
-                next_state , reward, finished = self.step(action, lastState)
+                next_state , reward, finished = self.step(action, state, lastState)
                                 
                 if finished:
-                    self.Q[state[0], state[1], action] = (1 - self.LearningRate) * self.Q[state[0], state[1], action] + self.LearningRate* reward
+                    renforcement = -self.LearningRate * self.Q[state[0], state[1], action] + self.LearningRate* reward
+                    self.Q[state[0], state[1], action] += renforcement
+                    renforcementsCumulés += abs(renforcement)
                     break
                 
                 next_action = self.sampleAction()
 
                 #update Q_table with bellman function
-                self.Q[state[0], state[1], action] = (1 - self.LearningRate) * self.Q[state[0], state[1], action] + self.LearningRate* (reward + self.gamma * self.Q[next_state[0],next_state[1],next_action] )
+                renforcement = -self.LearningRate * self.Q[state[0], state[1], action] + self.LearningRate* (reward + self.gamma * self.Q[next_state[0],next_state[1],next_action] )
+                self.Q[state[0], state[1], action] += renforcement
 
                 #now the current state is state and the current action is action
                 lastState = state
                 state = next_state
                 action = next_action
+                renforcementsCumulés += abs(renforcement)
 
 
             #when we get here the game is finished, so we reset it to play again!
             self.reset()
+            
+        
+        #plotting the cumulative reinforcements per number of iterations graph
+        _, ax = plt.subplots()
+        ax.plot(iterations, renforcements)
+        plt.savefig("plot")
 
     def play(self): #Play the game using the Q table 
-        
+        state = self.state
         #choose best action inside the Q table
         action =  np.argmax(self.Q[self.state[0], self.state[1]])
         
@@ -213,9 +233,12 @@ class Agent: #agent that will play the game
 
         self.fired = False
 
+        reward = self.stepReward(self.state[0],self.state[1], state, (0,0))
+
         print("Action values:",self.Q[self.state[0], self.state[1]])
         print(f"Action: {Agent.action_toString(action)}, state: {self.state}")
-
+        print("Distance to enemy:", Agent.calculerCollision(self.state[0], self.state[1]))
+        print("reward:" , reward)
         return action #I think I will use this to play the game
 
 if __name__ == "__main__":
@@ -223,6 +246,6 @@ if __name__ == "__main__":
     bunda = Agent()
     bunda.learn()
 
-    print(bunda.Q)
+    bunda.save("Q_table")
 
-    bunda.save(".\Q_table")
+    print(bunda.Q)

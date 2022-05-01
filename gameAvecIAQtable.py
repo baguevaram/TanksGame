@@ -369,13 +369,13 @@ for e in range(episodes):
 
     if not run: break
 
-    # Le cycle qui maintiendra le jeu actif est créé
+    # Le cycle qui maintiendra le jeu actif est cr
     while not win:
 
         if not run: break
 
-        for event in pygame.event.get():  # Les événements qui se produisent dans le jeu sont passés en revue
-             # Si l'événement est de quitter la fenêtre, la boucle est rompue
+        for event in pygame.event.get():  # Les vnements qui se produisent dans le jeu sont passï¿½s en revue
+             # Si l'ï¿½vï¿½nement est de quitter la fentre, la boucle est rompue
             if event.type == pygame.QUIT:
                 print("Quit")
                 run = False
