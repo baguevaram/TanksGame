@@ -1,5 +1,57 @@
+#TanksGame
+## Des instructions
+Ceci est un jeu de tir dont l'objectif  est de frapper l'adversaire le plus de fois possible.
+Le jeu consiste en un système au tour par tour. A chaque tour le 
+joueur peut se déplacer sur une certaine distance,  ajuster
+l'angle et la puissance du tir et enfin, tirer sur l'adversaire. Au total, il faut
+20 tirs pour terminer la partie. Celui qui a le plus impacté le rival sera
+le gagnant. 
+Le jeu peut être joué par une IA que nous avons développé.
+On peut également y jouer manuellement.
+
+La bibliothèque pygame a été utilisée pour le jeu, il peut donc être nécessaire de l'installer avec la commande :
+
+pip installer pygame
+
+ou à défaut essayez avec :
+
+pip3 installer pygame
+
+
+## Construction du jeu
+
+Le code source contient des commentaires détaillés sur la façon dont le jeu a été construit.
+
+## les contrôles
+
+- A : Déplacer le tank vers la gauche
+- D : Déplacer le réservoir vers la droite
+- Q : Augmenter l'angle de tir
+- E : Diminuer l'angle de tir
+- W : Augmente la puissance de tir
+- S : Diminue la puissance de tir
+-J : Tirez
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # TanksGame
-Proyecto final de introducción a las ciencias de la computación.
 
 Para el juego se utilizó la librería pygame, por lo tanto puede ser necesario instalarla con el comando: 
 
