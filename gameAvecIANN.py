@@ -1,17 +1,27 @@
-# The necessary libraries and necessary functions are imported
+# we import the necessary libraries
+from datetime import datetime
+from pathlib import Path
+
+import numpy as np
 import pygame  #library for managing the game
 from math import pi, sin, cos  # Functions and constant necessary for the calculation of speeds in x and y
 from random import randint  # Function to randomize the terrain generation
 
+import torch
+
+import IA
+
 
 def groundGen():  # Function to generate the terrain randomly
-    global field  # It is used because the global variable field is going to be modified
+    global field  ## It is used because the global variable field is going to be modified
+
         # The field vector will contain the height of the terrain, each position of the vector
         # contains the height of 3 contiguous pixels
 
         # The first height will be an integer between 100 and height (the height of the window) - 100
         # so that it is not too low or too high
     field[0] = randint(100, height - 100)
+
      # The terrain is divided into 4 parts and each one will have a random positive or negative slope
      # The slopes are random but the range of randomness is -2 to 5 for a positive slope
      # since most numbers will be positive and -5 to 2 for a negative slope
@@ -37,7 +47,7 @@ def groundGen():  # Function to generate the terrain randomly
 
 def changeTurn():  # Function to change shifts when one of the tanks fires
     global turn, angle, vel, vel1, vel2, angle1, angle2, movLimit
-    turn = not turn  # When the variable turn is True, it is tank 1's turn and False is tank 2's turn.
+    turn = not turn   # When the variable turn is True, it is tank 1's turn and False is tank 2's turn.
     movLimit = 50  
 
      # The variable movLimit is the limit of pixels that each tank can move per turn
@@ -56,7 +66,8 @@ def changeTurn():  # Function to change shifts when one of the tanks fires
 def initTanks():  #fonction pour creer un nouveau jeu
     global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2, turn, movLimit, field, score1, score2, turnsLimit, fire
 
-   
+    
+
     # we initialize global variables
     tank2rect.x = 900
     tank2rect.bottom = height - field[900 // 3]
@@ -136,9 +147,9 @@ run = True # Variable to always be running until closed
 fire = False
 win = False
 
-gravityAcceleration = 9.8 # positive because in the game the positive is down
+gravityAcceleration = 9.8  # positive because in the game the positive is down
 
-# Initial velocities and angles
+#Initial velocities and angles
 vel1 = 20
 vel2 = 20
 vel = vel1
@@ -153,13 +164,14 @@ score2 = 0
 # Number of turns in 1 round
 turnsLimit = 20
 
-turn = True # True tank1, False tank2
+turn = True  # True tank1, False tank2
 movLimit = 50
 
 # Start a new game
 initTanks()
 
 # The texts that are going to be used in the game are created and the rectangle that contains them is also found
+
 font = pygame.font.Font('freesansbold.ttf', 32)
 textWin1 = font.render('Tank 1 Wins', True, black, gray)
 textWin1Rect = textWin1.get_rect()
@@ -218,16 +230,17 @@ numberTank2Rect.center = (950, 70)
 
 # fonction pour savoir si le tir touchera la cible
 def calculerCollition():
-    global tank1rect, tank2rect, angle, vel
+    global tank1rect, tank2rect, angle, vel, turn
     rads = angle * pi / 180
     d = pow(vel, 2) * sin(2 * rads)
-
-    tankDistance = tank2rect.left - tank1rect.centerx
+    d = d if turn else -d
+    tankDistance = (tank2rect.left - tank1rect.centerx) if turn else (tank2rect.centerx - tank1rect.right)
     diff = min(abs(d - (tankDistance)), abs(d - (tankDistance + 30)))
 
     return diff
 
 
+# Fonction pour faire des actions
 def updateGame(action):
     # action:
     # 0 ->   Droite      A
@@ -240,9 +253,9 @@ def updateGame(action):
 
     global tank1rect, tank2rect, angle, vel, vel1, vel2, angle1, angle2, turn, movLimit, field, score1, score2, turnsLimit, fire, vx, vy
 
-    reward = -10000
+    reward = -1000000
 
-    keys = pygame.key.get_pressed()  #An array is saved where the pressed keys are True and the rest are False
+    keys = pygame.key.get_pressed()  # Se guarda un arreglo donde las teclas presionadas estan en True y las demÃ¡s en False
 
     state = None
         # If the D or A key is pressed then the tank on turn moves one pixel to the
@@ -255,8 +268,10 @@ def updateGame(action):
         movLimit -= 1
 
         dis = calculerCollition()
-        state = [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]
-        reward = -dis
+        state = np.array(
+            [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(
+            np.float32)
+        reward = -dis / 10
 
     if (keys[pygame.K_a] or action == 1) and movLimit:
         if turn and tank1rect.left > 0:
@@ -266,8 +281,8 @@ def updateGame(action):
         movLimit -= 1
 
         dis = calculerCollition()
-        state = [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]
-        reward = -dis
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
         # If the key pressed is Q or E, 1 is added or subtracted to the angle as appropriate
         # The angle always has modulo 360 so that it is between 0 and 359
@@ -275,15 +290,15 @@ def updateGame(action):
         angle = (angle + 1) % 360
 
         dis = calculerCollition()
-        state = [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]
-        reward = -dis
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
     if keys[pygame.K_e] or action == 3:
         angle = (angle - 1) % 360
 
         dis = calculerCollition()
-        state = [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]
-        reward = -dis
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
         # If the pressed key is W or S, 1 is added or subtracted from the initial speed as appropriate
         # The initial speed can be minimum 0 and maximum 40
@@ -291,202 +306,253 @@ def updateGame(action):
         vel += 1
 
         dis = calculerCollition()
-        state = [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]
-        reward = -dis
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
     if (keys[pygame.K_s] or action == 5) and vel > 0:
         vel -= 1
 
         dis = calculerCollition()
-        state = [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]
-        reward = -dis
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = -dis / 10
 
-  # If the key pressed is J, the initial speed in X and Y is calculated and the control variable fire is set to True
-    if keys[pygame.K_j] or action == 6:
+
+  # If the key pressed is J, the initial speed in X and Y is calculated and the control variable fire is set to True    if keys[pygame.K_j] or action == 6:
         vx = vel * cos(rads)
         vy = -vel * sin(rads)  # coordinates in Y in the game go in the opposite direction (negative )
         fire = True
 
-        turnsLimit -= 1 # When triggered, decrease the number of turns remaining by 1
+        turnsLimit -= 1   # When triggered, decrease the number of turns remaining by 1
 
         #  The initial position of the fireball depends on the tank that is in turn
         fireBallRect.x = tank1rect.x if turn else tank2rect.x
         fireBallRect.y = tank1rect.y if turn else tank2rect.y
 
         dis = calculerCollition()
-        state = [tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]
-        reward = 1000 if dis < 30 else -dis
+        state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis]).astype(np.float32)
+        reward = 10000 if dis < 30 else -dis
 
+    # dis = calculerCollition()
+    return state, reward, win
+
+
+use_cuda = torch.cuda.is_available()
+print(f"Using CUDA: {use_cuda}")
+print()
+
+save_dir1 = Path("checkpoints1") / datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+save_dir1.mkdir(parents=True)
+save_dir2 = Path("checkpoints2") / datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+save_dir2.mkdir(parents=True)
+
+tank1IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir1)
+tank1IA.net.load_state_dict(torch.load("net_IA1.chkpt")["model"])
+tank1IA.exploration_rate = 0
+
+tank2IA = IA.Tank(state_dim=7, action_dim=7, save_dir=save_dir2)
+tank2IA.net.load_state_dict(torch.load("net_IA2.chkpt")["model"])
+tank2IA.exploration_rate = 0
+
+logger1 = IA.MetricLogger(save_dir1)
+logger2 = IA.MetricLogger(save_dir2)
+
+episodes = 100000
+for e in range(episodes):
+    initTanks()
+    win = False
     dis = calculerCollition()
-    return state, reward, dis < 30
+    state = np.array([tank1rect.centerx, tank1rect.centerx, tank2rect.centerx, tank2rect.centerx, angle, vel, dis])
+    # reward = 1000 if dis < 30 else -dis
 
+    # # Le cycle qui maintiendra le jeu actif est créé
+    while not win:
 
-# The cycle that will keep the game active is created
-while run:
+        for event in pygame.event.get():  # Les événements qui se produisent dans le jeu sont passés en revue
+             # Si l'événement est de quitter la fenêtre, la boucle est rompue
+            if event.type == pygame.QUIT:
+                run = False
 
-    for event in pygame.event.get():  # The events that happen in the game are reviewed
-         # If the event is to exit the window, the loop is broken
-        
-        if event.type == pygame.QUIT:
-            run = False
+        #  # The background image is rendered in the window
+        screen.blit(background, [0, 0])
 
-    # The background image is rendered in the window
-    screen.blit(background, [0, 0])
+        # In the mouse variable the mouse position is saved and in the click variable it is saved if the click is pressed
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
 
-   # In the mouse variable the mouse position is saved and in the click variable it is saved if the click is pressed
-    mouse = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()
+        # If the button is clicked, the game is restarted with the initTanks() function
+        if resetRect.left < mouse[0] < resetRect.right and resetRect.top < mouse[1] < resetRect.bottom:
+            if click[0]:
+                win = False
+                initTanks()
 
-    # If the button is clicked, the game is restarted with the initTanks() function
-    if resetRect.left < mouse[0] < resetRect.right and resetRect.top < mouse[1] < resetRect.bottom:
-        if click[0]:
-            win = False
-            initTanks()
+        # Tanks are placed at ground level and rendered
+        tank2rect.bottom = height - field[tank2rect.centerx // 3]
+        tank1rect.bottom = height - field[tank1rect.centerx // 3]
+        screen.blit(tank1, tank1rect)
+        screen.blit(tank2, tank2rect)
 
-    # Tanks are placed at ground level and rendered
-    tank2rect.bottom = height - field[tank2rect.centerx // 3]
-    tank1rect.bottom = height - field[tank1rect.centerx // 3]
-    screen.blit(tank1, tank1rect)
-    screen.blit(tank2, tank2rect)
+        # For each height stored in the field variable, the part of the terrain is scaled and rendered
+        for pix, h in enumerate(field):
+            groundPix = pygame.transform.scale(ground, (3, h))
+            groundRect = groundPix.get_rect()
+            groundRect.bottom = height
+            groundRect.x = pix * 3
+            screen.blit(groundPix, groundRect)
 
-    # For each height stored in the field variable, the part of the terrain is scaled and rendered
-    for pix, h in enumerate(field):
-        groundPix = pygame.transform.scale(ground, (3, h))
-        groundRect = groundPix.get_rect()
-        groundRect.bottom = height
-        groundRect.x = pix * 3
-        screen.blit(groundPix, groundRect)
+        # Render the reset button
+        screen.blit(reset, resetRect)
 
-    # Render the reset button
-    screen.blit(reset, resetRect)
-
-    # Render angle, power, remaining turns and scores
-    screen.blit(textAngleLetters, textAngleLettersRect)
-    textAngle = font.render(str(angle), True, black, gray)
-    screen.blit(textAngle, textAngleRect)
-    screen.blit(textPowerLetters, textPowerLettersRect)
-    textVel = font.render(str(vel * 100 // 40), True, black, gray)
-    screen.blit(textVel, textVelRect)
-    screen.blit(textTurn, textTurnRect)
-    numberTurn = font.render(str(turnsLimit), True, black, gray)
-    screen.blit(numberTurn, numberTurnRect)
-    screen.blit(textTank1, textTank1Rect)
-    numberTank1 = font.render(str(score1), True, black, gray)
-    screen.blit(numberTank1, numberTank1Rect)
-    screen.blit(textTank2, textTank2Rect)
-    numberTank2 = font.render(str(score2), True, black, gray)
-    screen.blit(numberTank2, numberTank2Rect)
-
+        # # Render angle, power, remaining turns and scores
+        screen.blit(textAngleLetters, textAngleLettersRect)
+        textAngle = font.render(str(angle), True, black, gray)
+        screen.blit(textAngle, textAngleRect)
+        screen.blit(textPowerLetters, textPowerLettersRect)
+        textVel = font.render(str(vel * 100 // 40), True, black, gray)
+        screen.blit(textVel, textVelRect)
+        screen.blit(textTurn, textTurnRect)
+        numberTurn = font.render(str(turnsLimit), True, black, gray)
+        screen.blit(numberTurn, numberTurnRect)
+        screen.blit(textTank1, textTank1Rect)
+        numberTank1 = font.render(str(score1), True, black, gray)
+        screen.blit(numberTank1, numberTank1Rect)
+        screen.blit(textTank2, textTank2Rect)
+        numberTank2 = font.render(str(score2), True, black, gray)
+        screen.blit(numberTank2, numberTank2Rect)
      # If the control variable win is True, the text of the tank that won is displayed
      # also a play again button is shown and if clicked the game is restarted with the initTanks() function
 
-    if win:
-        if score1 > score2:
-            screen.blit(textWin1, textWin1Rect)
-        elif score2 > score1:
-            screen.blit(textWin2, textWin2Rect)
-        else:
-            screen.blit(textDraw, textDrawRect)
+        if win:
+            if score1 > score2:
+                screen.blit(textWin1, textWin1Rect)
+            elif score2 > score1:
+                screen.blit(textWin2, textWin2Rect)
+            else:
+                screen.blit(textDraw, textDrawRect)
 
-        screen.blit(explosion, explosionRect)
-        screen.blit(playAgain, playAgainRect)
+            screen.blit(explosion, explosionRect)
+            screen.blit(playAgain, playAgainRect)
 
-        if playAgainRect.left < mouse[0] < playAgainRect.right and playAgainRect.top < mouse[1] < playAgainRect.bottom:
-            if click[0]:
-                initTanks()
-                win = False
+            if playAgainRect.left < mouse[0] < playAgainRect.right and playAgainRect.top < mouse[
+                1] < playAgainRect.bottom:
+                if click[0]:
+                    initTanks()
+                    win = False
 
-        pygame.display.flip()  ## This function updates what is in the window
-        continue  # Go to the next cycle without looking at the bottom because it is no longer necessary
+            pygame.display.flip() ## This function updates what is in the window
+            continue  # Go to the next cycle without looking at the bottom because it is no longer necessary
 
-    # passer du deg au rad
-    rads = angle * pi / 180
+        # passer du deg au rad
+        rads = angle * pi / 180
 
     # The distance in X and Y at which the sight will be located, which will allow easier aiming, is calculated.
-    sightDistX = vel * 3 * cos(rads)
-    sightDistY = vel * 3 * sin(rads)
+        sightDistX = vel * 3 * cos(rads)
+        sightDistY = vel * 3 * sin(rads)
 
     # The sight is rendered at the place of the tank that has the turn
-    if turn:
-        sightRect.x = tank1rect.x + sightDistX
-        sightRect.y = tank1rect.y - sightDistY
-        screen.blit(sight, sightRect)
-    else:
-        sightRect.x = tank2rect.x + sightDistX
-        sightRect.y = tank2rect.y - sightDistY
-        screen.blit(sight, sightRect)
+        if turn:
+            sightRect.x = tank1rect.x + sightDistX
+            sightRect.y = tank1rect.y - sightDistY
+            screen.blit(sight, sightRect)
+        else:
+            sightRect.x = tank2rect.x + sightDistX
+            sightRect.y = tank2rect.y - sightDistY
+            screen.blit(sight, sightRect)
 
     # If the control variable fire is True, all fire logic is handled and everything else is stopped
-    if fire:
+        if fire:
         # Render the shot
-        screen.blit(fireBall, fireBallRect)
+            screen.blit(fireBall, fireBallRect)
         # The fireball moves according to the calculated speed in x and y
-        fireBallRect = fireBallRect.move(vx, vy)
+            fireBallRect = fireBallRect.move(vx, vy)
         # # The speed is updated according to the gravitational acceleration
-        vy += gravityAcceleration * 0.1
+            vy += gravityAcceleration * 0.1
         # In the adver variable the rectangle containing the opponent's tank is saved
-        adver = tank2rect if turn else tank1rect
+            adver = tank2rect if turn else tank1rect
 
         # If there is a collision between the fireball and the opponent, an explosion is rendered on the opponent's tank
          # Depending on whose turn it was, 1 is added to their score and the fire variable becomes False
-        if fireBallRect.colliderect(adver):
-            explosionRect.x = adver.x
-            explosionRect.y = adver.y
-            screen.blit(explosion, explosionRect)
+            if fireBallRect.colliderect(adver):
+                explosionRect.x = adver.x
+                explosionRect.y = adver.y
+                screen.blit(explosion, explosionRect)
 
-            if turn:
-                score1 += 1
-            else:
-                score2 += 1
+                if turn:
+                    score1 += 1
+                else:
+                    score2 += 1
 
-            fire = False
-            changeTurn()
+                changeTurn()
+                fire = False
 
         # # If the fireball leaves the window from the sides, it changes turns
-        if fireBallRect.left < 0 or fireBallRect.right > width:
-            fire = False
-            changeTurn()
+            if fireBallRect.left < 0 or fireBallRect.right > width:
+                changeTurn()
+                fire = False
 
         # condition to know if the fireball hits the ground
-        elif fireBallRect.bottom > height - field[fireBallRect.centerx // 3]:
-            impact = fireBallRect.centerx
+            elif fireBallRect.bottom > height - field[fireBallRect.centerx // 3]:
+                impact = fireBallRect.centerx
 
-            ref = field[impact // 3]
+                ref = field[impact // 3]
 
-            # An explosion is rendered at the impact site
-            explosionRect.centerx = fireBallRect.centerx
-            explosionRect.centery = fireBallRect.centery
-            screen.blit(explosion, explosionRect)
+               
+                explosionRect.centerx = fireBallRect.centerx
+                explosionRect.centery = fireBallRect.centery
+                screen.blit(explosion, explosionRect)
 
-            # Height is subtracted from the terrain to simulate a 20px radius explosion on the terrain
-             # for pf in range(20):
-             # res = int(pow(pow(20, 2) - pow(pf, 2), 0.5))
-             # if (impact - pf) // 3 > 0:
-             # field[(impact - pf) // 3] = max(0, max(field[(impact - pf) // 3] - res,
-             # min(field[(impact - pf) // 3], ref - res)))
-             # if (impact + pf) // 3 < len(field):
-             # field[(impact + pf) // 3] = max(0, max(field[(impact + pf) // 3] - res,
-             # min(field[(impact + pf) // 3], ref - res)))
+                # Height is subtracted from the terrain to simulate a 20px radius explosion on the terrain
+                # for pf in range(20):
+                #     res = int(pow(pow(20, 2) - pow(pf, 2), 0.5))
+                #     if (impact - pf) // 3 > 0:
+                #         field[(impact - pf) // 3] = max(0, max(field[(impact - pf) // 3] - res,
+                #                                                min(field[(impact - pf) // 3], ref - res)))
+                #     if (impact + pf) // 3 < len(field):
+                #         field[(impact + pf) // 3] = max(0, max(field[(impact + pf) // 3] - res,
+                #                                                min(field[(impact + pf) // 3], ref - res)))
 
-             # After the exposure, change shifts
-            fire = False
-            changeTurn()
+                # Luego de la exposiÃ³n se cambia de turno
+                changeTurn()
+                fire = False
 
-        pygame.display.flip()  # This function updates what is in the window
-        continue  # Skip to the next loop without looking at the bottom because it's no longer needed
+            pygame.display.flip()  # This function updates what is in the window
+            continue  # Skip to the next loop without looking at the bottom because it's no longer needed
 
     # If turns remaining is 0 then set the control variable win to True to end the game
-    if not turnsLimit:
-        win = True
+        if not turnsLimit:
+            win = True
 
-    action = -1
-    state, reward, done = updateGame(action)
+        if turn:
+            # Run agent on the state
+            action = tank1IA.act(state)
+        else:
+            action = tank2IA.act(state)
 
-    if state:
-        print(state)
-        print(reward)
-        print(done)
+        next_state, reward, done = updateGame(action)
 
-    pygame.display.flip()  
+        if next_state is not None:
+            # if turn:
+            #     # Remember
+            #     tank1IA.cache(state, next_state, action, reward, done)
+            #     # Learn
+            #     q, loss = tank1IA.learn()
+            #     logger1.log_step(reward, loss, q)
+            # else:
+            #     tank2IA.cache(state, next_state, action, reward, done)
+            #     # print(f"TANK2 next_State: {next_state},\t reward :{reward},\t done :{done}")
+            #     # Learn
+            #     q, loss = tank2IA.learn()
+            #     logger2.log_step(reward, loss, q)
+
+            # Update state
+            state = next_state
+
+        pygame.display.flip()  # This function updates what is in the window
+
+    logger1.log_episode()
+    logger2.log_episode()
+
+    # if e % 1 == 0:
+    #     logger1.record(episode=e, epsilon=tank1IA.exploration_rate, step=tank1IA.curr_step)
+    #     logger2.record(episode=e, epsilon=tank2IA.exploration_rate, step=tank2IA.curr_step)
 
 pygame.quit()  # When the cycle ends, the window closes
